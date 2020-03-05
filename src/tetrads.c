@@ -45,7 +45,7 @@ void set_Econ_from_trial(double Econ[4], int defdir, double trial[4])
   for (k = 0; k < 4; k++)
     norm += fabs(trial[k]);
   for (k = 0; k < 4; k++) /* trial vector */
-    if (norm <= SMALL) /* bad trial vector; default to defdir */
+    if (norm <= 1e-7) /* bad trial vector; default to defdir */
       Econ[k] = delta(k, defdir);
     else
       Econ[k] = trial[k];
