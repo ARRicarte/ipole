@@ -14,7 +14,8 @@
 
 #define NVAR (10)
 #define USE_FIXED_TPTE (0)
-#define USE_MIXED_TPTE (1)
+#define USE_MIXED_TPTE (0)
+#define USE_CRITICAL_TPTE (1)
 #define NSUP (3)
 
 // UNITS
@@ -33,6 +34,7 @@ double rmax_geo = 100.;
 double rmin_geo = 1.;
 double sigma_cut = 1.0;
 double beta_crit = 1.0;
+double beta_crit_coefficient = 0.5; 
 
 // MODEL PARAMETERS: PRIVATE
 static char fnam[STRLEN] = "dump.h5";
@@ -57,6 +59,7 @@ double positronRatio = 0.0;
 //    0 : constant TP_OVER_TE
 //    1 : use dump file model (kawazura?)
 //    2 : use mixed TP_OVER_TE (beta model)
+//    3 : use critical beta model (Anantua)
 static int RADIATION, ELECTRONS;
 static double gam = 1.444444, game = 1.333333, gamp = 1.666667;
 static double Thetae_unit, Mdotedd;
@@ -110,6 +113,7 @@ void try_set_model_parameter(const char *word, const char *value)
   set_by_word_val(word, value, "trat_large", &trat_large, TYPE_DBL);
   set_by_word_val(word, value, "sigma_cut", &sigma_cut, TYPE_DBL);
   set_by_word_val(word, value, "beta_crit", &beta_crit, TYPE_DBL);
+  set_by_word_val(word, value, "beta_crit_coefficient", &beta_crit_coefficient, TYPE_DBL);
 
   set_by_word_val(word, value, "rmax_geo", &rmax_geo, TYPE_DBL);
   set_by_word_val(word, value, "rmin_geo", &rmin_geo, TYPE_DBL);
@@ -468,6 +472,13 @@ void init_physical_quantities(int n)
           // see, e.g., Eq. 8 of the EHT GRRT formula list
           Thetae_unit = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat );
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
+	} else if (ELECTRONS == 3 ) {
+	  //See definition in Anantua et al. (2020).  Note that Ttot = Te + Ti
+	  double beta = data[n]->p[UU][i][j][k]*(gam-1.)/0.5/bsq;
+	  double Te_over_Ttot = beta_crit_coefficient * exp(-beta / beta_crit);
+	  double trat = (1.0 - Te_over_Ttot) / Te_over_Ttot;
+          Thetae_unit = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat );
+          data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
         } else {
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
         }
@@ -574,18 +585,22 @@ void init_iharm_grid(char *fnam, int dumpidx)
     }
     ELECTRONS = 1;
     Thetae_unit = MP/ME;
-  } else if (USE_FIXED_TPTE && !USE_MIXED_TPTE) {
+  } else if (USE_FIXED_TPTE && !USE_MIXED_TPTE && !USE_CRITICAL_TPTE) {
     ELECTRONS = 0; // force TP_OVER_TE to overwrite bad electrons
     fprintf(stderr, "using fixed tp_over_te ratio = %g\n", tp_over_te);
     //Thetae_unit = MP/ME*(gam-1.)*1./(1. + tp_over_te);
     // see, e.g., Eq. 8 of the EHT GRRT formula list. 
     // this formula assumes game = 4./3 and gamp = 5./3
     Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
-  } else if (USE_MIXED_TPTE && !USE_FIXED_TPTE) {
+  } else if (USE_MIXED_TPTE && !USE_FIXED_TPTE && !USE_CRITICAL_TPTE) {
     ELECTRONS = 2;
     fprintf(stderr, "using mixed tp_over_te with trat_small = %g, trat_large = %g, and beta_crit = %g\n", 
       trat_small, trat_large, beta_crit);
     // Thetae_unit set per-zone below
+  } else if (USE_CRITICAL_TPTE && !USE_MIXED_TPTE && !USE_FIXED_TPTE) {
+    ELECTRONS = 3;
+    fprintf(stderr, "using exponential critical beta model with beta_crit_coefficient = %g, and beta_crit = %g\n",
+      beta_crit_coefficient, beta_crit);
   } else {
     fprintf(stderr, "! please change electron model in model/iharm.c\n");
     exit(-3);
@@ -691,6 +706,9 @@ void output_hdf5()
     hdf5_write_single_val(&trat_small, "rlow", H5T_IEEE_F64LE);
     hdf5_write_single_val(&trat_large, "rhigh", H5T_IEEE_F64LE);
     hdf5_write_single_val(&beta_crit, "beta_crit", H5T_IEEE_F64LE);
+  } else if (ELECTRONS == 3) {
+    hdf5_write_single_val(&beta_crit, "beta_crit", H5T_IEEE_F64LE);
+    hdf5_write_single_val(&beta_crit_coefficient, "beta_crit_coefficient", H5T_IEEE_F64LE);
   }
   hdf5_write_single_val(&ELECTRONS, "type", H5T_STD_I32LE);
   hdf5_set_directory("/");
