@@ -472,7 +472,7 @@ void init_physical_quantities(int n)
           // see, e.g., Eq. 8 of the EHT GRRT formula list
           Thetae_unit = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat );
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
-	} else if (ELECTRONS == 3 ) {
+	} else if (ELECTRONS == 3) {
 	  //See definition in Anantua et al. (2020).  Note that Ttot = Te + Ti
 	  double beta = data[n]->p[UU][i][j][k]*(gam-1.)/0.5/bsq;
 	  double Te_over_Ttot = beta_crit_coefficient * exp(-beta / beta_crit);
@@ -578,7 +578,7 @@ void init_iharm_grid(char *fnam, int dumpidx)
   // we can override which electron model to use here. print results if we're
   // overriding anything. ELECTRONS should only be nonzero if we need to make
   // use of extra variables (instead of just UU and RHO) for thetae
-  if (!USE_FIXED_TPTE && !USE_MIXED_TPTE) {
+  if (!USE_FIXED_TPTE && !USE_MIXED_TPTE && !USE_CRITICAL_TPTE) {
     if (ELECTRONS != 1) {
       fprintf(stderr, "! no electron temperature model specified in model/iharm.c\n");
       exit(-3);
