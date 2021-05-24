@@ -18,7 +18,10 @@
 extern double DTd;
 extern double sigma_cut;
 extern int counterjet;
-extern double positronRatio;
+extern int electronModel;
 extern double rmax_geo;
+extern double constant_beta_e0;
+extern double beta_crit;
+extern double beta_crit_coefficient;
 
 #endif // MODEL_PARAMS_H

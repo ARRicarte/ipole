@@ -67,6 +67,11 @@ void load_par_from_argv(int argc, char *argv[], Params *params) {
   params->trace_stride = 1;
   params->trace_i = -1;
   params->trace_j = -1;
+  params->positronRatio = 0.0;  //ARR
+  //params->constant_beta_e0 = 0.1;  //ARR
+  //params->beta_crit= 1.0;  //ARR
+  //params->beta_crit_coefficient = 0.5;  //ARR
+  //params->electronModel = 2;  //ARR
 
   // This is what the par infra does.
   // I'm not sure there's still any advantage to "const" if we do this,
@@ -150,6 +155,12 @@ void try_set_parameter(const char *word, const char *value, Params *params) {
   set_by_word_val(word, value, "trace_j", &(params->trace_j), TYPE_INT);
   set_by_word_val(word, value, "trace_outf", (void *)(params->trace_outf), TYPE_STR);
 
+  //ARR
+  set_by_word_val(word, value, "positronRatio", &(params->positronRatio), TYPE_DBL);
+  //set_by_word_val(word, value, "constant_beta_e0", &(params->constant_beta_e0), TYPE_DBL);
+  //set_by_word_val(word, value, "beta_crit", &(params->positronRatio), TYPE_DBL);
+  //set_by_word_val(word, value, "beta_crit_coefficient", &(params->beta_crit_coefficient), TYPE_DBL);
+  //set_by_word_val(word, value, "electronModel", &(params->electronModel), TYPE_DBL);
   // Let models add/parse their own parameters we don't understand
   try_set_model_parameter(word, value);
 }

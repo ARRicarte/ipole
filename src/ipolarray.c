@@ -82,7 +82,7 @@ void push_polar(double Xi[NDIM], double Xm[NDIM], double Xf[NDIM],
 void evolve_N(double Xi[NDIM], double Kconi[NDIM],
     double Xhalf[NDIM], double Kconhalf[NDIM],
     double Xf[NDIM], double Kconf[NDIM],
-    double dlam, double complex N_coord[NDIM][NDIM], double *tauF)
+    double dlam, double complex N_coord[NDIM][NDIM], double *tauF, double positronRatio)
 {
   double gcov[NDIM][NDIM];
   double Ucon[NDIM],Bcon[NDIM];
@@ -125,18 +125,18 @@ void evolve_N(double Xi[NDIM], double Kconi[NDIM],
       }
     }
 
-    //ARR:  Modify according to positron ratio
-    jI *= (1 + positronRatio);
-    jQ *= (1 + positronRatio);
-    jU *= (1 + positronRatio);
-    jV *= (1 - positronRatio);
-    aI *= (1 + positronRatio);
-    aQ *= (1 + positronRatio);
-    aU *= (1 + positronRatio);
-    aV *= (1 - positronRatio);
-    rQ *= (1 + positronRatio);
-    rU *= (1 + positronRatio);
-    rV *= (1 - positronRatio);
+    //ARR:  Modify according to positron ratio, which is interpreted as the fraction times the initial number density of electrons added in positrons.  Both positrons and electrons are added now.
+    jI *= (1 + 2*positronRatio);
+    jQ *= (1 + 2*positronRatio);
+    jU *= (1 + 2*positronRatio);
+    jV *= (1 - positronRatio/(1+positronRatio));
+    aI *= (1 + 2*positronRatio);
+    aQ *= (1 + 2*positronRatio);
+    aU *= (1 + 2*positronRatio);
+    aV *= (1 - positronRatio/(1+positronRatio));
+    rQ *= (1 + 2*positronRatio);
+    rU *= (1 + 2*positronRatio);
+    rV *= (1 - positronRatio/(1+positronRatio));
 
     /* make plasma tetrad */
     B = get_model_b(Xf); /* field in G */

@@ -18,7 +18,8 @@ void evolve_N(double Xi[NDIM],double Kconi[NDIM],
     double Xhalf[NDIM],double Kconhalf[NDIM],
     double dlam,
     double complex N_coord[NDIM][NDIM],
-    double *tauF);
+    double *tauF,
+    double positronRatio);
 void project_N(double X[NDIM],double Kcon[NDIM],
     double complex Ncon[NDIM][NDIM],
     double *Stokes_I, double *Stokes_Q,double *Stokes_U,double *Stokes_V, double rotcam);

@@ -371,7 +371,7 @@ int main(int argc, char *argv[])
               
               // polarized transport
               if (! only_unpolarized) {
-                evolve_N(Xi, Kconi, Xhalf, Kconhalf, Xf, Kconf, dtraj[stepidx].dl, dimage[pxidx].N_coord, &(dimage[pxidx].tauF));
+                evolve_N(Xi, Kconi, Xhalf, Kconhalf, Xf, Kconf, dtraj[stepidx].dl, dimage[pxidx].N_coord, &(dimage[pxidx].tauF), params.positronRatio);
                 if (isnan(creal(dimage[pxidx].N_coord[0][0]))) {
                   exit(-2);
                 }
@@ -547,7 +547,7 @@ int main(int argc, char *argv[])
 
           // solve polarized transport
           if (! only_unpolarized ) {
-            evolve_N(Xi, Kconi, Xhalf, Kconhalf, Xf, Kconf, traj[nstep].dl, N_coord, &tauF);
+            evolve_N(Xi, Kconi, Xhalf, Kconhalf, Xf, Kconf, traj[nstep].dl, N_coord, &tauF, params.positronRatio);
             if (isnan(creal(N_coord[0][0]))) {
               printf("NaN in N00!\n");
               exit(-3);

@@ -34,7 +34,9 @@ double rmax_geo = 100.;
 double rmin_geo = 1.;
 double sigma_cut = 1.0;
 double beta_crit = 1.0;
-double beta_crit_coefficient = 0.5; 
+double beta_crit_coefficient = 0.5; //ARR:  For electronModel == 3
+double constant_beta_e0 = 0.1;  //ARR:  For electronModel == 4
+int electronModel = 2;   // ARR:  Made this into a parameter.
 
 // MODEL PARAMETERS: PRIVATE
 static char fnam[STRLEN] = "dump.h5";
@@ -49,18 +51,16 @@ static double Mdot_dump;
 static double MdotEdd_dump;
 static double Ladv_dump;
 
-//ARR: positron to electron ratio
-double positronRatio = 0.0;
-
 // MAYBES
 //static double t0;
 
-// ELECTRONS -> 
+// electronModel -> 
 //    0 : constant TP_OVER_TE
 //    1 : use dump file model (kawazura?)
 //    2 : use mixed TP_OVER_TE (beta model)
 //    3 : use critical beta model (Anantua)
-static int RADIATION, ELECTRONS;
+//    4 : use constant electron beta model (Anantua)
+static int RADIATION;
 static double gam = 1.444444, game = 1.333333, gamp = 1.666667;
 static double Thetae_unit, Mdotedd;
 
@@ -105,8 +105,8 @@ void try_set_model_parameter(const char *word, const char *value)
   set_by_word_val(word, value, "dump", (void *)fnam, TYPE_STR);
   set_by_word_val(word, value, "counterjet", &counterjet, TYPE_INT);
 
-  //ARR:  positron to electron ratio
-  set_by_word_val(word, value, "positronRatio", &positronRatio, TYPE_DBL);
+  //ARR:  there are many different electron modes
+  set_by_word_val(word, value, "electronModel", &electronModel, TYPE_INT);
 
   set_by_word_val(word, value, "tp_over_te", &tp_over_te, TYPE_DBL);
   set_by_word_val(word, value, "trat_small", &trat_small, TYPE_DBL);
@@ -114,6 +114,7 @@ void try_set_model_parameter(const char *word, const char *value)
   set_by_word_val(word, value, "sigma_cut", &sigma_cut, TYPE_DBL);
   set_by_word_val(word, value, "beta_crit", &beta_crit, TYPE_DBL);
   set_by_word_val(word, value, "beta_crit_coefficient", &beta_crit_coefficient, TYPE_DBL);
+  set_by_word_val(word, value, "constant_beta_e0", &constant_beta_e0, TYPE_DBL);
 
   set_by_word_val(word, value, "rmax_geo", &rmax_geo, TYPE_DBL);
   set_by_word_val(word, value, "rmin_geo", &rmin_geo, TYPE_DBL);
@@ -462,9 +463,9 @@ void init_physical_quantities(int n)
         data[n]->b[i][j][k] = sqrt(bsq)*B_unit;
         double sigma_m = bsq/data[n]->p[KRHO][i][j][k];
 
-        if (ELECTRONS == 1) {
+        if (electronModel == 1) {
           data[n]->thetae[i][j][k] = data[n]->p[KEL][i][j][k]*pow(data[n]->p[KRHO][i][j][k],game-1.)*Thetae_unit;
-        } else if (ELECTRONS == 2) {
+        } else if (electronModel == 2) {
           double beta = data[n]->p[UU][i][j][k]*(gam-1.)/0.5/bsq;
           double betasq = beta*beta / beta_crit/beta_crit;
           double trat = trat_large * betasq/(1. + betasq) + trat_small /(1. + betasq);
@@ -472,13 +473,16 @@ void init_physical_quantities(int n)
           // see, e.g., Eq. 8 of the EHT GRRT formula list
           Thetae_unit = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat );
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
-	} else if (ELECTRONS == 3) {
-	  //See definition in Anantua et al. (2020).  Note that Ttot = Te + Ti
-	  double beta = data[n]->p[UU][i][j][k]*(gam-1.)/0.5/bsq;
-	  double Te_over_Ttot = beta_crit_coefficient * exp(-beta / beta_crit);
-	  double trat = (1.0 - Te_over_Ttot) / Te_over_Ttot;
+        } else if (electronModel == 3) {
+          //See definition in Anantua et al. (2020).  Note that Ttot = Te + Ti
+          double beta = data[n]->p[UU][i][j][k]*(gam-1.)/0.5/bsq;
+          double Te_over_Ttot = beta_crit_coefficient * exp(-beta / beta_crit);
+          double trat = (1.0 - Te_over_Ttot) / Te_over_Ttot;
           Thetae_unit = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat );
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
+        } else if (electronModel == 4) {
+          //See definition in Anantua et al. (2020).  Set the internal energy to be equal to a fraction of the magnetic energy density.  Note that when ultrarelativistic, u = 3kT, not 3/2kT.
+          data[n]->thetae[i][j][k] = pow(data[n]->b[i][j][k], 2) * constant_beta_e0 / (6 * ME * CL * CL * (game-1.));
         } else {
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
         }
@@ -532,11 +536,14 @@ void init_iharm_grid(char *fnam, int dumpidx)
 
   hdf5_set_directory("/header/");
 
+  //ARR:  Commented out.  I don't think we'd ever want this.
+  /*
   if ( hdf5_exists("has_electrons") ) {
-    hdf5_read_single_val(&ELECTRONS, "has_electrons", H5T_STD_I32LE);
+    hdf5_read_single_val(&electronModel, "has_electrons", H5T_STD_I32LE);
   } else {
-    ELECTRONS = 0;
+    electronModel = 0;
   }
+  */
   if ( hdf5_exists("has_radiation") ) {
     hdf5_read_single_val(&RADIATION, "has_radiation", H5T_STD_I32LE);
   } else {
@@ -576,31 +583,26 @@ void init_iharm_grid(char *fnam, int dumpidx)
   Te_unit = Thetae_unit;
 
   // we can override which electron model to use here. print results if we're
-  // overriding anything. ELECTRONS should only be nonzero if we need to make
+  // overriding anything. electronModel should only be nonzero if we need to make
   // use of extra variables (instead of just UU and RHO) for thetae
-  if (!USE_FIXED_TPTE && !USE_MIXED_TPTE && !USE_CRITICAL_TPTE) {
-    if (ELECTRONS != 1) {
-      fprintf(stderr, "! no electron temperature model specified in model/iharm.c\n");
-      exit(-3);
-    }
-    ELECTRONS = 1;
+  if (electronModel == 1) {
     Thetae_unit = MP/ME;
-  } else if (USE_FIXED_TPTE && !USE_MIXED_TPTE && !USE_CRITICAL_TPTE) {
-    ELECTRONS = 0; // force TP_OVER_TE to overwrite bad electrons
+  } else if (electronModel == 0) {
     fprintf(stderr, "using fixed tp_over_te ratio = %g\n", tp_over_te);
     //Thetae_unit = MP/ME*(gam-1.)*1./(1. + tp_over_te);
     // see, e.g., Eq. 8 of the EHT GRRT formula list. 
     // this formula assumes game = 4./3 and gamp = 5./3
     Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
-  } else if (USE_MIXED_TPTE && !USE_FIXED_TPTE && !USE_CRITICAL_TPTE) {
-    ELECTRONS = 2;
+  } else if (electronModel == 2) {
     fprintf(stderr, "using mixed tp_over_te with trat_small = %g, trat_large = %g, and beta_crit = %g\n", 
       trat_small, trat_large, beta_crit);
     // Thetae_unit set per-zone below
-  } else if (USE_CRITICAL_TPTE && !USE_MIXED_TPTE && !USE_FIXED_TPTE) {
-    ELECTRONS = 3;
+  } else if (electronModel == 3) {
     fprintf(stderr, "using exponential critical beta model with beta_crit_coefficient = %g, and beta_crit = %g\n",
       beta_crit_coefficient, beta_crit);
+  } else if (electronModel == 4) {
+    fprintf(stderr, "using constant beta_e0 model with beta_e0 = %g\n",
+      constant_beta_e0);
   } else {
     fprintf(stderr, "! please change electron model in model/iharm.c\n");
     exit(-3);
@@ -700,17 +702,19 @@ void output_hdf5()
   hdf5_write_single_val(&sigma_cut, "sigma_cut", H5T_IEEE_F64LE);
   hdf5_make_directory("electrons");
   hdf5_set_directory("/header/electrons/");
-  if (ELECTRONS == 0) {
+  if (electronModel == 0) {
     hdf5_write_single_val(&tp_over_te, "tp_over_te", H5T_IEEE_F64LE);
-  } else if (ELECTRONS == 2) {
+  } else if (electronModel == 2) {
     hdf5_write_single_val(&trat_small, "rlow", H5T_IEEE_F64LE);
     hdf5_write_single_val(&trat_large, "rhigh", H5T_IEEE_F64LE);
     hdf5_write_single_val(&beta_crit, "beta_crit", H5T_IEEE_F64LE);
-  } else if (ELECTRONS == 3) {
+  } else if (electronModel == 3) {
     hdf5_write_single_val(&beta_crit, "beta_crit", H5T_IEEE_F64LE);
     hdf5_write_single_val(&beta_crit_coefficient, "beta_crit_coefficient", H5T_IEEE_F64LE);
+  } else if (electronModel == 4) {
+    hdf5_write_single_val(&constant_beta_e0, "constant_beta_e0", H5T_IEEE_F64LE);
   }
-  hdf5_write_single_val(&ELECTRONS, "type", H5T_STD_I32LE);
+  hdf5_write_single_val(&electronModel, "type", H5T_STD_I32LE);
   hdf5_set_directory("/");
 }
 
@@ -761,7 +765,7 @@ void load_iharm_data(int n, char *fnam, int dumpidx, int verbose)
   fstart[3] = 7;
   hdf5_read_array(data[n]->p[B3][0][0], "prims", 4, fdims, fstart, fcount, mdims, mstart, H5T_IEEE_F64LE); 
 
-  if (ELECTRONS == 1) {
+  if (electronModel == 1) {
     fstart[3] = 8;
     hdf5_read_array(data[n]->p[KEL][0][0], "prims", 4, fdims, fstart, fcount, mdims, mstart, H5T_IEEE_F64LE);
     fstart[3] = 9;
