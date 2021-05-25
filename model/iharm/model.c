@@ -482,7 +482,7 @@ void init_physical_quantities(int n)
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
         } else if (electronModel == 4) {
           //See definition in Anantua et al. (2020).  Set the internal energy to be equal to a fraction of the magnetic energy density.  Note that when ultrarelativistic, u = 3kT, not 3/2kT.
-          data[n]->thetae[i][j][k] = pow(data[n]->b[i][j][k], 2) * constant_beta_e0 / (6 * ME * CL * CL * (game-1.));
+          data[n]->thetae[i][j][k] = pow(data[n]->b[i][j][k], 2) * constant_beta_e0 / (2 * ME * CL * CL * (game-1.)) / data[n]->ne[i][j][k];
         } else {
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
         }
