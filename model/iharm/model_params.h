@@ -17,6 +17,7 @@
 
 extern double DTd;
 extern double sigma_cut;
+extern double sigma_transition;
 extern int counterjet;
 extern int electronModel;
 extern double rmax_geo;

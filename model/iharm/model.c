@@ -33,6 +33,7 @@ int counterjet = 0;
 double rmax_geo = 100.;
 double rmin_geo = 1.;
 double sigma_cut = 1.0;
+double sigma_transition = 0.5; //ARR:  For larger values of sigma than this, switch to a constant_beta_e0 model.
 double beta_crit = 1.0;
 double beta_crit_coefficient = 0.5; //ARR:  For electronModel == 3
 double constant_beta_e0 = 0.1;  //ARR:  For electronModel == 4
@@ -463,6 +464,11 @@ void init_physical_quantities(int n)
         data[n]->b[i][j][k] = sqrt(bsq)*B_unit;
         double sigma_m = bsq/data[n]->p[KRHO][i][j][k];
 
+        //ARR:  above sigma_transition, always use the constant_beta_e0 model.
+        if (sigma_m > sigma_transition) {
+          //Equivalent to electronModel == 4 below.
+          data[n]->thetae[i][j][k] = pow(data[n]->b[i][j][k], 2) * constant_beta_e0 / (2 * ME * CL * CL * (game-1.)) / data[n]->ne[i][j][k];
+        }
         if (electronModel == 1) {
           data[n]->thetae[i][j][k] = data[n]->p[KEL][i][j][k]*pow(data[n]->p[KRHO][i][j][k],game-1.)*Thetae_unit;
         } else if (electronModel == 2) {
@@ -486,6 +492,7 @@ void init_physical_quantities(int n)
         } else {
           data[n]->thetae[i][j][k] = Thetae_unit*data[n]->p[UU][i][j][k]/data[n]->p[KRHO][i][j][k];
         }
+		//Secret floor:  never let Theta_e go below 1e-3.
         data[n]->thetae[i][j][k] = MAX(data[n]->thetae[i][j][k], 1.e-3);
        
         //thetae[i][j][k] = (gam-1.)*MP/ME*p[UU][i][j][k]/p[KRHO][i][j][k];
